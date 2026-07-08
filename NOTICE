@@ -1,0 +1,27 @@
+CHRISTINA
+
+CHRISTINA is a modified derivative of Superset software (Copyright 2025-2026
+Superset, Inc.) and remains distributed under the Elastic License 2.0. The full
+license is included in LICENSE.md.
+
+Material modifications in this derivative include, but are not limited to:
+
+  - Rebranding the desktop application as CHRISTINA (Composable Harness Reactive Intelligent Systems Tool Integration Neural Agents).
+  - A host-owned agent kernel with durable sessions, normalized events,
+    policies, approvals, memory, skills, task graphs, hooks, budgets, and
+    checkpoints.
+  - Multi-agent orchestration with specialist routing, dependency-aware
+    execution, verification, critique, synthesis, and confidence scoring.
+  - Local inference support through Ollama, LM Studio, and compatible local
+    OpenAI-style endpoints.
+  - Private, agent-scoped book libraries and local retrieval-augmented
+    generation for tutoring, question answering, quizzes, and study guides.
+  - Cross-platform command transport and packaging support for macOS and
+    Windows.
+
+CHRISTINA is not affiliated with or endorsed by Superset, Inc. Internal package
+names and compatibility paths inherited from the upstream project may remain in
+source code to avoid breaking migrations and workspace dependencies.
+
+Third-party components and adapted software are attributed in
+THIRD-PARTY-NOTICES.md.

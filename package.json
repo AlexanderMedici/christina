@@ -1,0 +1,81 @@
+{
+	"name": "christina",
+	"version": "0.9.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/YOUR_GITHUB_USERNAME/christina.git"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.2",
+		"dotenv-cli": "^11.0.0",
+		"sherif": "^1.10.0",
+		"turbo": "^2.8.7"
+	},
+	"description": "CHRISTINA: local-first multi-agent orchestration with local models and private agent-scoped book libraries",
+	"homepage": "https://github.com/YOUR_GITHUB_USERNAME/christina#readme",
+	"license": "SEE LICENSE IN LICENSE.md",
+	"packageManager": "bun@1.3.6",
+	"private": true,
+	"scripts": {
+		"dev": "turbo run dev dev:caddy --filter=@superset/api --filter=@superset/web --filter=@ade/desktop --filter=//",
+		"dev:all": "turbo dev",
+		"dev:caddy": "dotenv -- caddy run --config Caddyfile",
+		"dev:docs": "turbo dev --filter=@superset/docs",
+		"dev:marketing": "turbo dev --filter=@superset/marketing --filter=@superset/docs",
+		"build": "turbo build --filter=@ade/desktop",
+		"test": "turbo test",
+		"lint": "bun run scripts/lint.ts",
+		"lint:fix": "biome migrate --write && biome check --write --unsafe .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"typecheck": "turbo typecheck",
+		"ui-add": "turbo run ui-add",
+		"postinstall": "bun run scripts/postinstall.ts",
+		"clean": "git clean -xdf node_modules",
+		"clean:workspaces": "turbo clean",
+		"release:desktop": "bun run scripts/release-desktop.ts",
+		"release:canary": "bun run scripts/release-canary.ts",
+		"db:push": "bun run --cwd packages/db push",
+		"db:migrate": "bun run --cwd packages/db migrate",
+		"db:generate:desktop": "bun run --cwd packages/local-db generate",
+		"dev:desktop": "bun run --cwd apps/desktop dev",
+		"local:models": "bun run scripts/christina-local.ts models",
+		"local:ask": "bun run scripts/christina-local.ts ask",
+		"local:orchestrate": "bun run scripts/christina-local.ts orchestrate",
+		"books:list": "bun run scripts/christina-books.ts list",
+		"books:add": "bun run scripts/christina-books.ts add",
+		"books:scan": "bun run scripts/christina-books.ts scan",
+		"books:agent": "bun run scripts/christina-books.ts agent",
+		"books:ask": "bun run scripts/christina-books.ts ask",
+		"books:remove": "bun run scripts/christina-books.ts remove"
+	},
+	"type": "module",
+	"workspaces": [
+		"packages/*",
+		"apps/*",
+		"tooling/*"
+	],
+	"resolutions": {
+		"mastracode": "https://github.com/superset-sh/mastra/releases/download/mastracode-v0.4.0-superset.7/mastracode-0.4.0-superset.7.tgz"
+	},
+	"patchedDependencies": {
+		"@durable-streams/state@0.2.1": "patches/@durable-streams%2Fstate@0.2.1.patch"
+	},
+	"bugs": {
+		"url": "https://github.com/YOUR_GITHUB_USERNAME/christina/issues"
+	},
+	"keywords": [
+		"multi-agent",
+		"orchestration",
+		"local-llm",
+		"ollama",
+		"lm-studio",
+		"rag",
+		"electron",
+		"typescript"
+	],
+	"engines": {
+		"node": ">=22",
+		"bun": ">=1.3.6"
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"name": "CHRISTINA",
+	"version": "0.9.0",
+	"status": "alpha",
+	"repositoryPlaceholder": "YOUR_GITHUB_USERNAME/christina",
+	"license": "Elastic-2.0",
+	"fullMonorepo": true,
+	"includedTopLevelDirectories": [
+		".agents",
+		".charlie",
+		".codex",
+		".cursor",
+		".github",
+		".mastracode",
+		".superset",
+		"apps",
+		"assets",
+		"docs",
+		"mock",
+		"packages",
+		"patches",
+		"scripts",
+		"tooling"
+	]
+}

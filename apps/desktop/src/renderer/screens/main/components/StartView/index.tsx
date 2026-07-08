@@ -1,0 +1,56 @@
+import { Button } from "@superset/ui/button";
+import { cn } from "@superset/ui/utils";
+import { LuBrainCircuit, LuFolderPlus } from "react-icons/lu";
+import { useOpenNewCategoryModal } from "renderer/stores/new-category-modal";
+
+/** First-run / empty onboarding for CHRISTINA teams and agents. */
+export function StartView() {
+	const openNewCategory = useOpenNewCategoryModal();
+
+	return (
+		<div className="flex flex-col h-full w-full relative overflow-hidden bg-background">
+			<div className="relative flex flex-1 items-center justify-center">
+				<div className="flex flex-col items-center w-full max-w-md px-6">
+					<div className="mb-10 flex flex-col items-center gap-3 text-center">
+						<div className="rounded-2xl bg-primary p-3 text-primary-foreground shadow-sm">
+							<LuBrainCircuit className="size-8" />
+						</div>
+						<div>
+							<h1 className="text-2xl font-semibold">CHRISTINA</h1>
+							<p className="mt-1 text-sm text-muted-foreground">
+								Create a team to organize specialist agents and projects.
+							</p>
+						</div>
+					</div>
+
+					<div className="w-full flex flex-col items-center gap-4">
+						<button
+							type="button"
+							onClick={() => openNewCategory()}
+							className={cn(
+								"w-full rounded-xl border-2 border-dashed border-border/60 bg-card/50 px-6 py-16",
+								"transition-all duration-200 hover:border-primary/40 hover:bg-accent/50",
+								"focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+							)}
+						>
+							<div className="flex flex-col items-center group">
+								<div className="flex items-center gap-3">
+									<LuFolderPlus className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+									<span className="text-lg font-medium text-foreground">Create a team</span>
+								</div>
+								<div className="text-sm pt-3 text-muted-foreground">
+									Teams group your agents. Add agents once you have one.
+								</div>
+							</div>
+						</button>
+
+						<Button variant="outline" size="sm" onClick={() => openNewCategory()} className="text-sm">
+							<LuFolderPlus className="size-3.5" />
+							New team
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
