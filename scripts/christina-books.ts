@@ -112,16 +112,16 @@ Commands:
 
 Examples:
   Windows:
-    bun run books:add -- --name "MERN Books" --path "E:\\Books\\MERN"
+    pnpm books:add -- --name "MERN Books" --path "E:\\Books\\MERN"
 
   macOS:
-    bun run books:add -- --name "MERN Books" --path "/Volumes/Books/MERN"
+    pnpm books:add -- --name "MERN Books" --path "/Volumes/Books/MERN"
 
   Create tutor:
-    bun run books:agent -- --name "MERN Tutor" --library LIBRARY_ID --provider ollama --model qwen2.5:7b
+    pnpm books:agent -- --name "MERN Tutor" --library LIBRARY_ID --provider ollama --model qwen2.5:7b
 
   Learn:
-    bun run books:ask -- --agent PROFILE_ID --mode teach --question "Teach me closures from these books"
+    pnpm books:ask -- --agent PROFILE_ID --mode teach --question "Teach me closures from these books"
 `);
 }
 

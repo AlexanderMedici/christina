@@ -17,6 +17,7 @@ import { MemoryService } from "./memory";
 import { ChristinaOrchestrator } from "./orchestration";
 import { DefaultPolicyEngine, type PolicyEngine } from "./policy";
 import { type AgentRuntimeAdapter, RuntimeRegistry } from "./runtime";
+import { SchedulerService } from "./scheduler";
 import { SkillService } from "./skills";
 import type { AgentKernelStore } from "./store";
 import { validateOutput, validateStructuredValue } from "./structured-output";
@@ -40,6 +41,7 @@ import type {
 
 export interface StartRunRequest {
 	sessionId?: string;
+	parentSessionId?: string;
 	agentId: string;
 	runtimeId: string;
 	workspaceId: string;
@@ -100,6 +102,56 @@ function applyHookPrompt(prompt: string, ...results: Array<HookExecutionResult |
 	return [...initial, updated].filter(Boolean).join("\n\n");
 }
 
+function memoryContextBlock(
+	request: StartRunRequest,
+	results: Awaited<ReturnType<MemoryService["search"]>>,
+): ContextBlock | undefined {
+	if (results.length === 0) return undefined;
+	return {
+		id: `memory-recall-${request.agentId}`,
+		kind: "memory",
+		priority: 92,
+		pinned: true,
+		compactable: true,
+		maxTokens: 900,
+		content: [
+			`Relevant durable memory for ${request.agentId}:`,
+			...results.map(
+				(result, index) =>
+					`${index + 1}. [${result.memory.scope}] ${result.memory.text}`,
+			),
+		].join("\n"),
+		source: "agent-kernel.memory",
+	};
+}
+
+function skillContextBlocks(skills: Awaited<ReturnType<SkillService["select"]>>): ContextBlock[] {
+	return skills.map((skill, index) => ({
+		id: `skill-${skill.id}`,
+		kind: "skill",
+		priority: 90 - index,
+		compactable: true,
+		maxTokens: 1_200,
+		content: `Skill: ${skill.name}\nDescription: ${skill.description}\n\n${skill.instructions}`,
+		source: "agent-kernel.skills",
+	}));
+}
+
+function requiredToolsFromStructuredOutput(value: unknown): string[] {
+	if (!value || typeof value !== "object") return [];
+	const toolCalls = (value as Record<string, unknown>).toolCalls;
+	if (!Array.isArray(toolCalls)) return [];
+	return [...new Set(
+		toolCalls
+			.map((item) =>
+				item && typeof item === "object" && typeof (item as Record<string, unknown>).tool === "string"
+					? (item as Record<string, unknown>).tool as string
+					: undefined,
+			)
+			.filter((item): item is string => Boolean(item)),
+	)];
+}
+
 export class AgentKernel {
 	readonly runtimes = new RuntimeRegistry();
 	readonly context = new ContextEngine();
@@ -108,6 +160,7 @@ export class AgentKernel {
 	readonly books: BookLibraryService;
 	readonly memory: MemoryService;
 	readonly skills: SkillService;
+	readonly scheduler: SchedulerService;
 	readonly tasks: TaskGraphService;
 	readonly tools: ToolGateway;
 	readonly mailbox: SessionMailboxService;
@@ -124,6 +177,7 @@ export class AgentKernel {
 		this.books = new BookLibraryService(store);
 		this.memory = new MemoryService(store);
 		this.skills = new SkillService(store);
+		this.scheduler = new SchedulerService(store);
 		this.tasks = new TaskGraphService(store);
 		this.mailbox = new SessionMailboxService(store);
 		this.checkpoints = new CheckpointService(store, this.hooks);
@@ -317,6 +371,7 @@ export class AgentKernel {
 				id: request.sessionId ?? randomUUID(),
 				agentId: request.agentId,
 				workspaceId: request.workspaceId,
+				parentSessionId: request.parentSessionId,
 				runtimeSessionIds: {},
 				status: "active",
 				createdAt: now,
@@ -355,6 +410,19 @@ export class AgentKernel {
 				: await this.mailbox.claimBatch(session.id);
 		const mailboxBlock = this.mailbox.toContextBlock(claimedMessages);
 		const prompt = applyHookPrompt(request.prompt, sessionHook, runHook);
+		const [projectMemories, agentMemories, selectedSkills] = await Promise.all([
+			this.memory.search(prompt, request.workspaceId, 4),
+			this.memory.search(prompt, request.agentId, 3),
+			this.skills.select(prompt, 3),
+		]);
+		const recalledMemoryBlock = memoryContextBlock(request, [
+			...projectMemories,
+			...agentMemories.filter(
+				(result) =>
+					!projectMemories.some((project) => project.memory.id === result.memory.id),
+			),
+		]);
+		const selectedSkillIds = selectedSkills.map((skill) => skill.id);
 		const privateBooks = request.bookLibraryIds?.length
 			? await this.books.contextForAgent({
 				agentId: request.agentId,
@@ -367,6 +435,8 @@ export class AgentKernel {
 		const context = this.context.build({
 			blocks: [
 				...(request.contextBlocks ?? []),
+				...(recalledMemoryBlock ? [recalledMemoryBlock] : []),
+				...skillContextBlocks(selectedSkills),
 				...(privateBooks.block ? [privateBooks.block] : []),
 				...hookContextBlocks("session-hook", sessionHook),
 				...hookContextBlocks("run-hook", runHook),
@@ -396,6 +466,7 @@ export class AgentKernel {
 				checkpointAfterRun: request.checkpointAfterRun ?? false,
 				privateBookLibraryIds: request.bookLibraryIds ?? [],
 				privateBookCitations: privateBooks.results.map((result) => result.citation),
+				selectedSkillIds,
 				hookAnnotations: {
 					...(sessionHook?.annotations ?? {}),
 					...(runHook.annotations ?? {}),
@@ -560,6 +631,29 @@ export class AgentKernel {
 		const run = await this.store.getRun(runId);
 		if (!run) throw new Error(`Run not found: ${runId}`);
 		return run;
+	}
+
+	async dispatchDueSchedules(at = new Date()) {
+		return this.scheduler.dispatchDue(
+			async (schedule) => {
+				const run = await this.start({
+					agentId: schedule.agentId,
+					runtimeId: schedule.runtimeId,
+					workspaceId: schedule.workspaceId,
+					cwd: schedule.cwd,
+					prompt: schedule.prompt,
+					safetyMode: schedule.safetyMode,
+					model: schedule.model,
+					metadata: {
+						...(schedule.metadata ?? {}),
+						scheduleId: schedule.id,
+						scheduled: true,
+					},
+				});
+				return { runId: run.id };
+			},
+			at,
+		);
 	}
 
 	private async consume(run: AgentRun): Promise<void> {
@@ -830,8 +924,40 @@ export class AgentKernel {
 				current.error = { ...current.error, retryable: true };
 			}
 			if (current.status === "completed") {
+				const selectedSkillIds = Array.isArray(run.preparedRun.metadata?.selectedSkillIds)
+					? (run.preparedRun.metadata?.selectedSkillIds as unknown[]).filter(
+							(value): value is string => typeof value === "string",
+					  )
+					: [];
+				if (selectedSkillIds.length > 0) {
+					await Promise.all(
+						selectedSkillIds.map((skillId) =>
+							this.skills.recordOutcome(skillId, true).catch(() => undefined),
+						),
+					);
+				}
+				await this.skills
+					.draftFromRun({
+						runId: run.id,
+						prompt: run.preparedRun.prompt,
+						outputText,
+						requiredTools: requiredToolsFromStructuredOutput(current.structuredOutput),
+					})
+					.catch(() => undefined);
 				await this.mailbox.markDelivered(mailboxMessageIds);
 			} else {
+				const selectedSkillIds = Array.isArray(run.preparedRun.metadata?.selectedSkillIds)
+					? (run.preparedRun.metadata?.selectedSkillIds as unknown[]).filter(
+							(value): value is string => typeof value === "string",
+					  )
+					: [];
+				if (selectedSkillIds.length > 0) {
+					await Promise.all(
+						selectedSkillIds.map((skillId) =>
+							this.skills.recordOutcome(skillId, false).catch(() => undefined),
+						),
+					);
+				}
 				await this.mailbox.release(mailboxMessageIds);
 			}
 			current.updatedAt = new Date().toISOString();
@@ -905,5 +1031,62 @@ export class AgentKernel {
 			force: true,
 			allowIncomplete: input.allowIncomplete,
 		});
+	}
+
+	async dispatchTaskGraph(input: {
+		graphId: string;
+		workspaceId: string;
+		cwd: string;
+		defaultRuntimeId?: string;
+		defaultAgentId?: string;
+		safetyMode?: AgentSafetyMode;
+	}): Promise<{
+		graphId: string;
+		dispatched: Array<{ taskId: string; runId: string; status: AgentRun["status"] }>;
+	}> {
+		const dispatched: Array<{ taskId: string; runId: string; status: AgentRun["status"] }> = [];
+		while (true) {
+			const ready = await this.tasks.ready(input.graphId);
+			if (ready.length === 0) break;
+			const stage = await Promise.all(
+				ready.map(async (task) => {
+					const runtimeId = task.runtimeId ?? input.defaultRuntimeId;
+					const agentId = task.assignedAgentId ?? input.defaultAgentId;
+					if (!runtimeId) throw new Error(`Task ${task.key} is missing a runtime.`);
+					if (!agentId) throw new Error(`Task ${task.key} is missing an assigned agent.`);
+					await this.tasks.update(task.id, "running", {
+						assignedAgentId: agentId,
+						runtimeId,
+					});
+					try {
+						const run = await this.start({
+							parentSessionId: undefined,
+							agentId,
+							runtimeId,
+							workspaceId: input.workspaceId,
+							cwd: input.cwd,
+							prompt: task.description?.trim() || task.title,
+							safetyMode: input.safetyMode ?? "workspace",
+							metadata: {
+								taskGraphId: task.graphId,
+								taskId: task.id,
+								taskKey: task.key,
+							},
+						});
+						const finished = await this.waitForRun(run.id);
+						await this.tasks.update(
+							task.id,
+							finished.status === "completed" ? "completed" : "failed",
+						);
+						return { taskId: task.id, runId: run.id, status: finished.status };
+					} catch (error) {
+						await this.tasks.update(task.id, "failed");
+						throw error;
+					}
+				}),
+			);
+			dispatched.push(...stage);
+		}
+		return { graphId: input.graphId, dispatched };
 	}
 }

@@ -26,7 +26,7 @@ function validateLibsqlNotBundled(): void {
 	const sourceMapPath = join(projectRoot, "dist", "main", "index.js.map");
 	assertExists(
 		sourceMapPath,
-		"Main bundle sourcemap not found. Run `bun run compile:app` first.",
+		"Main bundle sourcemap not found. Run `pnpm run compile:app` first.",
 	);
 
 	const sourceMap = readFileSync(sourceMapPath, "utf8");
@@ -43,7 +43,7 @@ function validateLibsqlNotBundled(): void {
 	const distMainDir = join(projectRoot, "dist", "main");
 	assertExists(
 		distMainDir,
-		"Main bundle output not found. Run `bun run compile:app` first.",
+		"Main bundle output not found. Run `pnpm run compile:app` first.",
 	);
 
 	const jsFiles = collectFiles(distMainDir).filter((filePath) =>
@@ -115,7 +115,7 @@ function validateNativeModulesPrepared(): void {
 	const nodeModulesDir = join(projectRoot, "node_modules");
 	assertExists(
 		nodeModulesDir,
-		"node_modules not found. Run `bun install` and `bun run copy:native-modules` first.",
+		"node_modules not found. Run `pnpm install` and `pnpm run copy:native-modules` first.",
 	);
 
 	const requiredModules = [
@@ -146,7 +146,7 @@ function validateNativeModulesPrepared(): void {
 			[
 				"Missing platform-specific @libsql package.",
 				`Expected one of: ${platformCandidates.join(", ")}`,
-				"Run `bun run copy:native-modules` and ensure optional dependencies are materialized.",
+				"Run `pnpm run copy:native-modules` and ensure optional dependencies are materialized.",
 			].join("\n"),
 		);
 	}

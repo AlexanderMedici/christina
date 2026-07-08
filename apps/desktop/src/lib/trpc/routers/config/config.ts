@@ -85,6 +85,7 @@ async function detectSetupDefaults(
 		hasBunLock,
 		hasBunLockb,
 		hasPnpmLock,
+		hasPnpmWorkspace,
 		hasYarnLock,
 		hasYarnRc,
 		hasNpmLock,
@@ -109,6 +110,7 @@ async function detectSetupDefaults(
 		check("bun.lock"),
 		check("bun.lockb"),
 		check("pnpm-lock.yaml"),
+		check("pnpm-workspace.yaml"),
 		check("yarn.lock"),
 		check(".yarnrc.yml"),
 		check("package-lock.json"),
@@ -133,7 +135,7 @@ async function detectSetupDefaults(
 
 	const signals: Record<string, boolean> = {
 		bun: hasBunLock || hasBunLockb,
-		pnpm: hasPnpmLock,
+		pnpm: hasPnpmLock || hasPnpmWorkspace,
 		yarn: hasYarnLock,
 		yarnBerry: hasYarnLock && hasYarnRc,
 		npm: hasNpmLock,
@@ -162,23 +164,23 @@ async function detectSetupDefaults(
 
 	const actions: SetupAction[] = [];
 
-	// --- Package managers (JS: bun > pnpm > yarn > npm) ---
-	if (signals.bun) {
-		actions.push({
-			id: "bun-install",
-			category: "package-manager",
-			label: "Install dependencies",
-			detail: "bun install",
-			command: "bun install",
-			enabled: true,
-		});
-	} else if (signals.pnpm) {
+	// --- Package managers (JS: pnpm > bun > yarn > npm) ---
+	if (signals.pnpm) {
 		actions.push({
 			id: "pnpm-install",
 			category: "package-manager",
 			label: "Install dependencies",
 			detail: "pnpm install",
 			command: "pnpm install",
+			enabled: true,
+		});
+	} else if (signals.bun) {
+		actions.push({
+			id: "bun-install",
+			category: "package-manager",
+			label: "Install dependencies",
+			detail: "bun install",
+			command: "bun install",
 			enabled: true,
 		});
 	} else if (signals.yarn) {
@@ -324,10 +326,10 @@ async function detectSetupDefaults(
 
 	// --- Build project summary ---
 	const ecosystems: string[] = [];
-	const jsManager = signals.bun
-		? "bun"
-		: signals.pnpm
-			? "pnpm"
+	const jsManager = signals.pnpm
+		? "pnpm"
+		: signals.bun
+			? "bun"
 			: signals.yarn
 				? "yarn"
 				: signals.npm

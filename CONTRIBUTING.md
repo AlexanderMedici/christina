@@ -14,8 +14,8 @@ Thank you for helping improve CHRISTINA.
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/christina.git
 cd christina
-bun install
-bun run dev:desktop
+pnpm install
+pnpm dev:desktop
 ```
 
 ## Branches and commits
@@ -33,17 +33,18 @@ Prefer conventional commit prefixes: `feat`, `fix`, `docs`, `refactor`, `test`, 
 ## Required checks
 
 ```bash
-bun run lint
-bun run typecheck
-bun run test
+pnpm lint
+pnpm typecheck
 ```
 
 For kernel changes:
 
 ```bash
-bun run --cwd packages/agent-kernel typecheck
+pnpm --filter @superset/agent-kernel typecheck
 bun test packages/agent-kernel/src
 ```
+
+The repo is now managed with `pnpm`, but several existing test suites still run on Bun's test runner until they are migrated.
 
 Test cross-platform code on Windows and macOS where practical. Never construct commands by concatenating untrusted text into shell strings.
 

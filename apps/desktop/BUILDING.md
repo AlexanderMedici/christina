@@ -3,23 +3,23 @@
 Run the dev server without env validation or auth:
 
 ```bash
-SKIP_ENV_VALIDATION=1 bun run dev
+SKIP_ENV_VALIDATION=1 pnpm dev
 ```
 
 This skips environment variable validation and the sign-in screen, useful for local development without credentials.
 
 # Release
 
-When building for release, make sure `node-pty` is built for the correct architecture with `bun run install:deps`, then run `bun run release`.
+When building for release, make sure `node-pty` is built for the correct architecture with `pnpm install:deps`, then run `pnpm release`.
 
 # Linux (AppImage) local build
 
 From `apps/desktop`:
 
 ```bash
-bun run clean:dev
-bun run compile:app
-bun run package -- --publish never --config electron-builder.ts
+pnpm clean:dev
+pnpm compile:app
+pnpm package -- --publish never --config electron-builder.ts
 ```
 
 Expected outputs in `apps/desktop/release/`:

@@ -37,6 +37,10 @@ function assertAcyclic(tasks: AgentTask[]): void {
 export class TaskGraphService {
 	constructor(private readonly store: AgentKernelStore) {}
 
+	listTasks(graphId?: string): Promise<AgentTask[]> {
+		return this.store.listTasks(graphId);
+	}
+
 	async create(input: TaskGraphInput): Promise<AgentTask[]> {
 		const graphId = input.graphId ?? randomUUID();
 		const ids = new Map<string, string>();

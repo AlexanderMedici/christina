@@ -22,6 +22,7 @@ import type {
 	LibraryAgentAssignment,
 	KnowledgeAgentProfile,
 	MemoryRecord,
+	ScheduledRunRecord,
 	SessionMessage,
 	SkillDefinition,
 } from "./types";
@@ -129,6 +130,10 @@ export interface AgentKernelStore {
 	putKnowledgeAgent(profile: KnowledgeAgentProfile): Promise<void>;
 	getKnowledgeAgent(id: string): Promise<KnowledgeAgentProfile | undefined>;
 	listKnowledgeAgents(): Promise<KnowledgeAgentProfile[]>;
+	putSchedule(schedule: ScheduledRunRecord): Promise<void>;
+	getSchedule(id: string): Promise<ScheduledRunRecord | undefined>;
+	listSchedules(): Promise<ScheduledRunRecord[]>;
+	deleteSchedule(id: string): Promise<void>;
 }
 
 export class FileAgentKernelStore implements AgentKernelStore {
@@ -147,6 +152,7 @@ export class FileAgentKernelStore implements AgentKernelStore {
 	private readonly bookChunksDir: string;
 	private readonly libraryAssignmentsDir: string;
 	private readonly knowledgeAgentsDir: string;
+	private readonly schedulesDir: string;
 	private eventWriteQueue = Promise.resolve();
 
 	constructor(public readonly rootDir: string) {
@@ -165,6 +171,7 @@ export class FileAgentKernelStore implements AgentKernelStore {
 		this.bookChunksDir = join(rootDir, "book-libraries", "chunks");
 		this.libraryAssignmentsDir = join(rootDir, "book-libraries", "assignments");
 		this.knowledgeAgentsDir = join(rootDir, "book-libraries", "agents");
+		this.schedulesDir = join(rootDir, "schedules");
 	}
 
 	async initialize(): Promise<void> {
@@ -185,6 +192,7 @@ export class FileAgentKernelStore implements AgentKernelStore {
 				this.bookChunksDir,
 				this.libraryAssignmentsDir,
 				this.knowledgeAgentsDir,
+				this.schedulesDir,
 			].map((dir) => mkdir(dir, { recursive: true })),
 		);
 	}
@@ -440,6 +448,26 @@ export class FileAgentKernelStore implements AgentKernelStore {
 
 	async listKnowledgeAgents(): Promise<KnowledgeAgentProfile[]> {
 		return (await listJson<KnowledgeAgentProfile>(this.knowledgeAgentsDir)).sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	putSchedule(schedule: ScheduledRunRecord): Promise<void> {
+		return atomicWrite(join(this.schedulesDir, `${safeId(schedule.id)}.json`), schedule);
+	}
+
+	getSchedule(id: string): Promise<ScheduledRunRecord | undefined> {
+		return readJson(join(this.schedulesDir, `${safeId(id)}.json`));
+	}
+
+	async listSchedules(): Promise<ScheduledRunRecord[]> {
+		return (await listJson<ScheduledRunRecord>(this.schedulesDir)).sort((a, b) =>
+			a.nextRunAt && b.nextRunAt
+				? a.nextRunAt.localeCompare(b.nextRunAt)
+				: a.createdAt.localeCompare(b.createdAt),
+		);
+	}
+
+	deleteSchedule(id: string): Promise<void> {
+		return rm(join(this.schedulesDir, `${safeId(id)}.json`), { force: true });
 	}
 
 }

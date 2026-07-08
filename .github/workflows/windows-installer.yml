@@ -32,6 +32,9 @@ jobs:
       - name: Generate checksums
         shell: pwsh
         run: |
+          if (Test-Path apps/desktop/release/SHA256SUMS.txt) {
+            Remove-Item apps/desktop/release/SHA256SUMS.txt -Force
+          }
           Get-ChildItem apps/desktop/release/*.exe | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Out-File -Append -Encoding ascii apps/desktop/release/SHA256SUMS.txt

@@ -129,7 +129,7 @@ export function PresetEditorSheet({
 									commands={preset.commands}
 									onChange={onCommandsChange}
 									onBlur={onCommandsBlur}
-									placeholder="e.g. bun run dev"
+									placeholder="e.g. pnpm dev"
 								/>
 							</div>
 

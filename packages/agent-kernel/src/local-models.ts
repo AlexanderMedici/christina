@@ -753,9 +753,8 @@ export class LocalModelService {
 		return models;
 	}
 
-	async select(input: LocalModelSelectionRequest): Promise<LocalModelSelection | undefined> {
+	async rank(input: LocalModelSelectionRequest): Promise<LocalModelSelection[]> {
 		const models = await this.discover({ providerIds: input.providerIds });
-		const minimumScore = input.minimumScore ?? 60;
 		const selections = models.map((model): LocalModelSelection => {
 			const breakdown: LocalModelScoreBreakdown = {
 				taskFit: taskFit(input.agentId, model),
@@ -797,7 +796,12 @@ export class LocalModelService {
 				Number(Boolean(b.descriptor.loaded)) - Number(Boolean(a.descriptor.loaded)) ||
 				a.model.localeCompare(b.model),
 		);
-		return selections.find((item) => item.score >= minimumScore);
+		return selections;
+	}
+
+	async select(input: LocalModelSelectionRequest): Promise<LocalModelSelection | undefined> {
+		const minimumScore = input.minimumScore ?? 60;
+		return (await this.rank(input)).find((item) => item.score >= minimumScore);
 	}
 
 	systemMemory(): { totalBytes: number; freeBytes: number } {

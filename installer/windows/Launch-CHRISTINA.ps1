@@ -14,7 +14,7 @@ function Write-Step([string]$Message) {
 function Refresh-Path {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $env:Path = "$machine;$user;$env:USERPROFILE\.bun\bin"
+    $env:Path = "$machine;$user"
 }
 
 function Require-Winget {
@@ -50,28 +50,33 @@ try {
         Refresh-Path
     }
 
-    if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-        Write-Step 'Installing Bun'
-        Invoke-RestMethod https://bun.sh/install.ps1 | Invoke-Expression
-        Refresh-Path
+    if (-not (Get-Command corepack -ErrorAction SilentlyContinue)) {
+        throw 'Corepack is required to activate pnpm. Restart Windows after Node.js installs and launch CHRISTINA again.'
     }
 
-    if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-        throw 'Bun installation did not complete. Restart Windows and launch CHRISTINA again.'
+    Write-Step 'Activating pnpm via Corepack'
+    corepack enable
+    if ($LASTEXITCODE -ne 0) { throw "corepack enable failed with exit code $LASTEXITCODE." }
+    corepack prepare pnpm@10.0.0 --activate
+    if ($LASTEXITCODE -ne 0) { throw "corepack prepare pnpm failed with exit code $LASTEXITCODE." }
+    Refresh-Path
+
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        throw 'pnpm activation did not complete. Restart Windows and launch CHRISTINA again.'
     }
 
     Set-Location $InstallRoot
     $Marker = Join-Path $InstallRoot 'node_modules\.christina-installed'
     if (-not (Test-Path $Marker)) {
         Write-Step 'Installing CHRISTINA application dependencies (first launch only)'
-        bun install --frozen-lockfile
+        pnpm install --frozen-lockfile
         if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed with exit code $LASTEXITCODE." }
         New-Item -ItemType File -Force -Path $Marker | Out-Null
     }
 
     Write-Step 'Starting CHRISTINA Desktop'
     Write-Host 'You can close this launcher window after the desktop application opens.' -ForegroundColor DarkGray
-    bun run dev:desktop
+    pnpm dev:desktop
     if ($LASTEXITCODE -ne 0) { throw "CHRISTINA exited with code $LASTEXITCODE." }
 }
 catch {

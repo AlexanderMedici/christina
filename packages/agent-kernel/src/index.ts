@@ -13,6 +13,7 @@ export * from "./orchestration";
 export * from "./policy";
 export * from "./process";
 export * from "./runtime";
+export * from "./scheduler";
 export * from "./skills";
 export * from "./store";
 export * from "./structured-output";

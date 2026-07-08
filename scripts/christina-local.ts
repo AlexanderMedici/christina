@@ -1,12 +1,8 @@
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
 import {
-	AgentKernel,
-	FileAgentKernelStore,
-	OllamaRuntimeAdapter,
-	OpenAICompatibleRuntimeAdapter,
 	type SpecialistAgentId,
 } from "../packages/agent-kernel/src/index";
+import { resolve } from "node:path";
+import { createKernel, readLocalProfile } from "./christina-cli";
 
 interface CliOptions {
 	command: string;
@@ -48,47 +44,6 @@ function parseArgs(argv: string[]): CliOptions {
 	};
 }
 
-function registerLocalProviders(kernel: AgentKernel): void {
-	kernel.registerLocalModelProvider(
-		new OllamaRuntimeAdapter({
-			baseUrl: process.env.CHRISTINA_OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",
-			timeoutMs: Number(process.env.CHRISTINA_LOCAL_MODEL_TIMEOUT_MS ?? 120_000),
-		}),
-	);
-	kernel.registerLocalModelProvider(
-		new OpenAICompatibleRuntimeAdapter({
-			id: "lmstudio",
-			label: "LM Studio",
-			kind: "openai-compatible",
-			baseUrl: process.env.CHRISTINA_LMSTUDIO_BASE_URL ?? "http://127.0.0.1:1234/v1",
-			apiKey: process.env.CHRISTINA_LMSTUDIO_API_KEY,
-			timeoutMs: Number(process.env.CHRISTINA_LOCAL_MODEL_TIMEOUT_MS ?? 120_000),
-		}),
-	);
-	if (process.env.CHRISTINA_LOCAL_OPENAI_BASE_URL) {
-		kernel.registerLocalModelProvider(
-			new OpenAICompatibleRuntimeAdapter({
-				id: "local-openai",
-				label: "Local OpenAI-Compatible Server",
-				kind: "openai-compatible",
-				baseUrl: process.env.CHRISTINA_LOCAL_OPENAI_BASE_URL,
-				apiKey: process.env.CHRISTINA_LOCAL_OPENAI_API_KEY,
-				timeoutMs: Number(process.env.CHRISTINA_LOCAL_MODEL_TIMEOUT_MS ?? 120_000),
-				trustedLocalhostOnly:
-					process.env.CHRISTINA_ALLOW_REMOTE_MODEL_ENDPOINT === "true" ? false : true,
-			}),
-		);
-	}
-}
-
-async function createKernel(): Promise<AgentKernel> {
-	const home = process.env.CHRISTINA_HOME ?? join(homedir(), ".christina");
-	const kernel = new AgentKernel(new FileAgentKernelStore(join(home, "agent-kernel")));
-	registerLocalProviders(kernel);
-	await kernel.initialize();
-	return kernel;
-}
-
 function printHelp(): void {
 	console.log(`CHRISTINA local-model CLI
 
@@ -102,6 +57,12 @@ Commands:
 
   orchestrate --prompt "..." [--agents CODER,CRITIC] [--minimum-score 60]
     Run the CHRISTINA specialist swarm using local models only.
+
+  doctor
+    Inspect runtime and provider health. See \`pnpm doctor:runtime\`.
+
+  recommend
+    Rank local model candidates. See \`pnpm profile:recommend\`.
 
 Options:
   --cwd PATH
@@ -126,6 +87,9 @@ async function main(): Promise<void> {
 		printHelp();
 		return;
 	}
+	if (options.command === "doctor" || options.command === "recommend" || options.command === "profile:init") {
+		throw new Error(`Use the pnpm christina-runtime equivalent scripts for ${options.command}.`);
+	}
 	const kernel = await createKernel();
 	if (options.command === "models") {
 		const providers = await kernel.localModels.inspectProviders();
@@ -135,8 +99,9 @@ async function main(): Promise<void> {
 	}
 	if (options.command === "ask") {
 		if (!options.prompt) throw new Error("ask requires --prompt");
-		let runtimeId = options.provider;
-		let model = options.model;
+		const savedProfile = readLocalProfile();
+		let runtimeId = options.provider ?? savedProfile?.provider;
+		let model = options.model ?? savedProfile?.model;
 		let selection;
 		if (!runtimeId || !model) {
 			selection = await kernel.localModels.select({
@@ -172,6 +137,7 @@ async function main(): Promise<void> {
 	}
 	if (options.command === "orchestrate") {
 		if (!options.prompt) throw new Error("orchestrate requires --prompt");
+		const savedProfile = readLocalProfile();
 		const started = await kernel.orchestrator.start({
 			request: options.prompt,
 			workspaceId: "local-cli",
@@ -180,6 +146,7 @@ async function main(): Promise<void> {
 			explicitAgents: options.agents,
 			localModelPolicy: "local-only",
 			minimumLocalModelScore: options.minimumScore,
+			localProviderIds: savedProfile ? [savedProfile.provider] : undefined,
 		});
 		const completed = await kernel.orchestrator.wait(started.id, 60 * 60_000);
 		console.log(completed.finalResponse ?? completed.error ?? "No response was produced.");

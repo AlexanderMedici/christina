@@ -2,6 +2,21 @@
 
 CHRISTINA provides two Windows installation paths.
 
+## 0. One-line PowerShell bootstrap
+
+For a Hermes-style install flow, run:
+
+```powershell
+irm https://raw.githubusercontent.com/AlexanderMedici/christina/main/installer/windows/install.ps1 | iex
+```
+
+Behavior:
+
+1. Try the latest GitHub release and download a Windows `.exe` installer if one exists.
+2. Download `SHA256SUMS.txt` when it is published with the release and verify the installer checksum before launch.
+3. Fall back to a source install under `%LOCALAPPDATA%\Programs\CHRISTINA` if no release installer is published yet.
+4. Run `installer\windows\Launch-CHRISTINA.ps1` to install prerequisites and start the desktop app.
+
 ## 1. Bootstrap installer
 
 `CHRISTINA-0.9.0-Windows-Bootstrap-Installer.exe` is a clickable, unsigned installer that:
@@ -27,7 +42,7 @@ The production workflow:
 - generates routes and type-checks the desktop app;
 - builds the Windows x64 application;
 - creates an NSIS `.exe` installer;
-- uploads the installer and SHA-256 checksum as workflow artifacts;
+- uploads the installer and `SHA256SUMS.txt` as workflow artifacts;
 - attaches release files when triggered by a version tag.
 
 A signed public release additionally requires a Windows code-signing certificate and repository secrets.

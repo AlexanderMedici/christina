@@ -1,23 +1,25 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const version = process.argv[2];
 if (!version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
-	console.error("Usage: bun run release:desktop <version>");
+	console.error("Usage: pnpm release:desktop <version>");
 	process.exit(2);
 }
 
 function run(command: string[]) {
-	const result = Bun.spawnSync(command, {
-		stdin: "inherit",
-		stdout: "inherit",
-		stderr: "inherit",
+	const [bin, ...args] = command;
+	const result = spawnSync(bin, args, {
+		stdio: "inherit",
 	});
-	if (result.exitCode !== 0) process.exit(result.exitCode);
+	if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const status = Bun.spawnSync(["git", "status", "--porcelain"], { stdout: "pipe" });
-if (status.stdout.toString().trim()) {
+const status = spawnSync("git", ["status", "--porcelain"], {
+	encoding: "utf8",
+});
+if ((status.stdout ?? "").trim()) {
 	console.error("Working tree must be clean before creating a release.");
 	process.exit(1);
 }

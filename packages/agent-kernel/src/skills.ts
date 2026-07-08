@@ -14,6 +14,10 @@ function terms(value: string): Set<string> {
 export class SkillService {
 	constructor(private readonly store: AgentKernelStore) {}
 
+	async list(): Promise<SkillDefinition[]> {
+		return this.store.listSkills();
+	}
+
 	async create(
 		input: Omit<
 			SkillDefinition,
@@ -86,5 +90,56 @@ export class SkillService {
 		};
 		await this.store.putSkill(updated);
 		return updated;
+	}
+
+	async draftFromRun(input: {
+		runId: string;
+		prompt: string;
+		outputText: string;
+		requiredTools?: string[];
+	}): Promise<SkillDefinition | undefined> {
+		const trimmedOutput = input.outputText.trim();
+		if (trimmedOutput.length < 240) return undefined;
+		const triggerTerms = [...terms(input.prompt)].slice(0, 8);
+		if (triggerTerms.length < 2) return undefined;
+		const existing = await this.store.listSkills();
+		const name = this.deriveName(input.prompt);
+		if (
+			existing.some(
+				(skill) => skill.name.toLowerCase() === name.toLowerCase(),
+			)
+		) {
+			return undefined;
+		}
+		const now = new Date().toISOString().slice(0, 10);
+		const excerpt = trimmedOutput.slice(0, 4_000);
+		return this.create({
+			name,
+			version: "0.1.0",
+			description: `Auto-drafted from successful run ${input.runId} on ${now}.`,
+			instructions: [
+				`When a task similar to "${input.prompt}" appears, reuse this procedure draft.`,
+				"",
+				"Working pattern:",
+				`1. Restate the goal in concrete terms and check constraints.`,
+				"2. Reuse or adapt the proven implementation notes below.",
+				"3. Validate assumptions, edge cases, and any missing verification.",
+				"",
+				"Reference output:",
+				excerpt,
+			].join("\n"),
+			triggers: triggerTerms,
+			requiredTools: input.requiredTools ?? [],
+			status: "draft",
+		});
+	}
+
+	private deriveName(prompt: string): string {
+		const words = prompt
+			.replace(/[^a-zA-Z0-9\s-]/g, " ")
+			.split(/\s+/)
+			.filter(Boolean)
+			.slice(0, 8);
+		return words.length > 0 ? words.join(" ") : "Auto drafted skill";
 	}
 }

@@ -792,3 +792,36 @@ export interface AskKnowledgeAgentResult {
 	results: BookSearchResult[];
 	citations: string[];
 }
+
+export type ScheduleStatus = "active" | "paused" | "completed";
+
+export type ScheduleTrigger =
+	| { type: "once"; runAt: string }
+	| { type: "interval"; everyMinutes: number };
+
+export interface ScheduledRunRecord {
+	id: string;
+	agentId: string;
+	runtimeId: string;
+	workspaceId: string;
+	cwd: string;
+	prompt: string;
+	safetyMode: AgentSafetyMode;
+	model?: string;
+	trigger: ScheduleTrigger;
+	status: ScheduleStatus;
+	nextRunAt?: string;
+	lastRunAt?: string;
+	lastRunId?: string;
+	lastError?: string;
+	createdAt: string;
+	updatedAt: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface ScheduledRunDispatchResult {
+	schedule: ScheduledRunRecord;
+	runId?: string;
+	status: "dispatched" | "skipped" | "failed";
+	reason?: string;
+}

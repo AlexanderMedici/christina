@@ -247,7 +247,7 @@ export function ScriptsEditor({ projectId, className }: ScriptsEditorProps) {
 			<ScriptTextarea
 				title="Setup"
 				description="Runs when a new agent is created."
-				placeholder="e.g. bun install && bun run dev"
+				placeholder="e.g. pnpm install && pnpm dev"
 				value={setupContent}
 				onChange={handleSetupChange}
 			/>
