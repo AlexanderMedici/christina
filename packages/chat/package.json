@@ -37,8 +37,8 @@
 	"devDependencies": {
 		"@superset/typescript": "workspace:*",
 		"@types/bun": "^1.2.17",
-		"@types/node": "^24.9.1",
+		"@types/node": "^26.1.2",
 		"@types/react": "~19.2.2",
-		"typescript": "^5.9.3"
+		"typescript": "^7.0.2"
 	}
 }
