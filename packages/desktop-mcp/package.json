@@ -17,8 +17,8 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.26.0",
-		"dotenv": "^17.3.1",
-		"puppeteer-core": "^24.37.3",
+		"dotenv": "^18.0.4",
+		"puppeteer-core": "^25.12.0",
 		"zod": "^4.3.5"
 	},
 	"devDependencies": {
